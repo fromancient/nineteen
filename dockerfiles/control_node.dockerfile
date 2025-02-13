@@ -25,7 +25,7 @@ RUN pip install --upgrade pip
 ENV PYTHONPATH=/app:$PYTHONPATH
 
 ARG BREAK_CACHE_ARG=0
-RUN pip install --no-cache-dir "fiber[full] @ git+https://github.com/rayonlabs/fiber.git@2.1.0"
+RUN pip install --no-cache-dir "fiber[full] @ git+https://github.com/rayonlabs/fiber.git@2.2.0"
 ################################################################################
 
 FROM core AS control_node
