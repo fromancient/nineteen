@@ -58,7 +58,7 @@ async def _get_last_updated_value(config: Config):
     substrate, last_updated_value = query_substrate(
         substrate, "SubtensorModule", "LastUpdate", [config.netuid], return_value=False
     )
-    updated: float = current_block - last_updated_value[uid].value
+    updated: float = current_block - last_updated_value[uid]
     return updated
 
 
