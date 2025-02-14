@@ -24,7 +24,7 @@ python -m venv .venv || python3 -m venv .venv
 ```bash
 source .venv/bin/activate
 find . -path "./venv" -prune -o -path "./.venv" -prune -o -name "requirements.txt" -exec pip install -r {} \;
-pip install --no-cache-dir "fiber[full] @ git+https://github.com/rayonlabs/fiber.git@2.2.0"
+pip install --no-cache-dir "fiber[full] @ git+https://github.com/rayonlabs/fiber.git@2.2.2"
 task dev_setup
 task control_node_dev  # For example for the validator control node
 task m1_dev  # For example for the miner 1
