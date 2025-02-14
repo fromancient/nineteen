@@ -7,4 +7,4 @@ docker image prune -a -f --filter "until=168h"
 
 docker compose --env-file .vali.env -f docker-compose.yml run -e LOCALHOST=false --entrypoint "python src/migration.py" control_node
 ./utils/launch_validator.sh
-echo "Autoupdate steps complete :)"
+echo "Autoupdate steps complete :-)"
