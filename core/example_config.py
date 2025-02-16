@@ -29,7 +29,7 @@ def custom_task_configs_factory():
         CHAT_LLAMA_3_1_405B: cmodels.FullTaskConfig(
             task=CHAT_LLAMA_3_1_405B,
             task_type=cmodels.TaskType.TEXT,
-            max_capacity=4_000_000,  # I can also change the capacity however I like
+            max_capacity=400_000,  # I can also change the capacity however I like
             orchestrator_server_config=cmodels.OrchestratorServerConfig(
                 server_needed=cmodels.ServerType.LLM,
                 load_model_config={
@@ -59,7 +59,7 @@ def custom_task_configs_factory():
         ANIMAGINEXL_TEXT_TO_IMAGE: cmodels.FullTaskConfig(
             task=ANIMAGINEXL_TEXT_TO_IMAGE,
             task_type=cmodels.TaskType.IMAGE,
-            max_capacity=3_600,
+            max_capacity=360,
             orchestrator_server_config=cmodels.OrchestratorServerConfig(
                 server_needed=cmodels.ServerType.IMAGE,
                 load_model_config={

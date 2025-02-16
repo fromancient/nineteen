@@ -139,7 +139,7 @@ async def _calculate_normalised_period_score(
     period_scores = await _get_period_scores(psql_db, task, node_hotkey)
     all_period_scores = [ps for ps in period_scores if ps.period_score is not None]
     # Requires an abundance of data before handing out top scores
-    period_score_multiplier = 1 if len(all_period_scores) > 1 else 0.25
+    period_score_multiplier = 1 if len(all_period_scores) > 8 else 0.25
     normalised_period_scores = _normalise_period_scores(all_period_scores, period_score_multiplier)
     return normalised_period_scores, period_score_multiplier
 
