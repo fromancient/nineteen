@@ -251,7 +251,7 @@ async def main():
                     substrate, "SubtensorModule", "LastUpdate", [config.netuid], return_value=False
                 )
                 if last_updated_value is not None and uid is not None:
-                    updated: int = current_block - last_updated_value[uid].value
+                    updated: int = current_block - last_updated_value[uid]
                     substrate, weights_set_rate_limit = query_substrate(
                         substrate, "SubtensorModule", "WeightsSetRateLimit", [config.netuid], return_value=True
                     )
