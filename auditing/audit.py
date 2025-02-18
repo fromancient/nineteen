@@ -182,21 +182,20 @@ async def audit_weights(config: AuditConfig) -> bool:
 
     similarity_between_scores = _normalised_vector_dot_product(rayon_weights, weights_values)
 
+    my_vali_uid = None
+    if config.keypair:
+        logger.info(f"Hotkey and coldkey pair inputted, attempting to find a vali uid on netuid {PROD_NETUID}...")
+        _, my_vali_uid = query_substrate(
+            substrate, "SubtensorModule", "Uids", [config.netuid, config.keypair.ss58_address], return_value=True
+        )
+        if my_vali_uid is not None:
+            logger.info(f"Found my vali uid on netuid {PROD_NETUID}, setting weights!")
+            success = await set_weights(config, node_ids_formatted, node_weights_formatted, my_vali_uid)
+            return success
+    
     if similarity_between_scores > 0.98:
         logger.info(f"✅ Yay! The scores are similar to the weights set on chain!! Similarity: {similarity_between_scores}")
-
-        if config.keypair:
-            logger.info(f"Hotkey and coldkey pair inputted, attempting to find a vali uid on netuid {PROD_NETUID}...")
-            _, my_vali_uid = query_substrate(
-                substrate, "SubtensorModule", "Uids", [config.netuid, config.keypair.ss58_address], return_value=True
-            )
-
-            if my_vali_uid is not None:
-                logger.info(f"Found my vali uid on netuid {PROD_NETUID}, setting weights!")
-                success = await set_weights(config, node_ids_formatted, node_weights_formatted, my_vali_uid)
-                return success
         return True
-
     else:
         logger.error(
             f"Dear Auditor, the similarity between the scores and the weights set on chain is {similarity_between_scores}."
@@ -252,7 +251,7 @@ async def main():
                     substrate, "SubtensorModule", "LastUpdate", [config.netuid], return_value=False
                 )
                 if last_updated_value is not None and uid is not None:
-                    updated: int = current_block - last_updated_value[uid].value
+                    updated: int = current_block - last_updated_value[uid]
                     substrate, weights_set_rate_limit = query_substrate(
                         substrate, "SubtensorModule", "WeightsSetRateLimit", [config.netuid], return_value=True
                     )
