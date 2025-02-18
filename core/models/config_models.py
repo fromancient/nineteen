@@ -1,6 +1,10 @@
 from enum import Enum
 import time
 from pydantic import BaseModel, Field
+from substrateinterface import Keypair
+from substrateinterface import SubstrateInterface
+import httpx
+from dataclasses import dataclass
 
 
 class TaskType(Enum):
@@ -85,4 +89,13 @@ class FullTaskConfig(BaseModel):
             "weight": self.weight,
             "timeout": self.timeout,
             "display_name": self.display_name if self.display_name else self.task.strip("chat-"),
+            "enabled": self.enabled
         }
+
+
+@dataclass
+class AuditConfig:
+    substrate: SubstrateInterface
+    keypair: Keypair | None
+    netuid: int
+    httpx_client: httpx.AsyncClient

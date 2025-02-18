@@ -62,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate configuration file")
     parser.add_argument("--dev", action="store_true", help="Use development configuration")
     parser.add_argument("--miner", action="store_true", help="Generate miner configuration")
+    parser.add_argument("--auditor", action="store_true", help="Generate auditor configuration")
     return parser.parse_args()
 
 
@@ -111,6 +112,10 @@ def generate_validator_config(dev: bool = False) -> dict[str, Any]:
     config["WALLET_NAME"] = input("Enter wallet name (default: default): ") or "default"
     config["HOTKEY_NAME"] = input("Enter hotkey name (default: default): ") or "default"
     config["SUBTENSOR_NETWORK"] = input("Enter subtensor network (default: finney): ") or "finney"
+    config["S3_COMPATIBLE_ENDPOINT"] = "localhost:9000"
+    config["S3_COMPATIBLE_ACCESS_KEY"] = "minioadmin"
+    config["S3_COMPATIBLE_SECRET_KEY"] = "minioadmin"
+    config["S3_REGION"] = "us-east-1"
     subtensor_address = validate_input("Enter subtensor address (default: None): ", websocket_validator)
     if subtensor_address:
         config["SUBTENSOR_ADDRESS"] = subtensor_address
@@ -167,6 +172,26 @@ def generate_config(dev: bool = False, miner: bool = False) -> dict[str, Any]:
     else:
         return generate_validator_config(dev)
 
+def generate_auditor_config(dev: bool = False) -> dict[str, Any]:
+    print("\n🎯 Let's set up your Auditor! 🚀\n")
+    config: dict[str, Any] = {}
+    wallet_name = input("Enter wallet name (default: None): ") or None
+    if wallet_name:
+        config["WALLET_NAME"] = wallet_name
+    hotkey_name = input("Enter hotkey name (default: None): ") or None
+    if hotkey_name:
+        config["HOTKEY_NAME"] = hotkey_name
+    config["SUBTENSOR_NETWORK"] = input("Enter subtensor network (default: finney): ") or "finney"
+    config["IS_AUDITOR"] = '1'
+    if config["SUBTENSOR_NETWORK"] == 'test':
+        subtensor_address = 'wss://test.finney.opentensor.ai:443'
+    else:
+        subtensor_address = 'wss://entrypoint-finney.opentensor.ai:443'
+    #subtensor_address = validate_input("Enter subtensor address (default: None): ", websocket_validator)
+    if subtensor_address:
+        config["SUBTENSOR_ADDRESS"] = subtensor_address
+    config["NETUID"] = 176 if config["SUBTENSOR_NETWORK"] == "test" else 19
+    return config
 
 def write_config_to_file(config: dict[str, Any], env: str) -> None:
     filename = f".{env}.env"
@@ -182,6 +207,9 @@ if __name__ == "__main__":
     if args.miner:
         config = generate_config(miner=True)
         name = config["HOTKEY_NAME"]
+    elif args.auditor:
+        config = generate_auditor_config()
+        name = "auditor"
     else:
         env = "dev" if args.dev else "prod"
         config = generate_config(dev=args.dev)

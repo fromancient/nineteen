@@ -1,9 +1,7 @@
 SCORING_PERIOD_TIME = 60 * 30  # 30 mins
-VERSION_KEY = 63_400
+VERSION_KEY = 65_000
 CHARACTER_TO_TOKEN_CONVERSION = 4.0
-
 PROD_NETUID = 19
-
 
 TASK = "task"
 TASK_TYPE = "task_type"
@@ -14,8 +12,10 @@ WEIGHT = "weight"
 MINER_TYPE = "miner_type"
 
 
-# BASE_NINETEEN_API_URL = "http://localhost:8033/"
-BASE_NINETEEN_API_URL = "https://taovision.ai/"
+# BASE_TAOVISION_API_URL = "http://localhost:8033/"
+BASE_TAOVISION_API_URL = "https://taovision.ai/"
+BASE_NINETEEN_API_URL = "https://api.nineteen.ai/"
+
 
 GPU_WORKER_VERSION_ENDPOINT = "version"
 

@@ -95,3 +95,18 @@ class RewardData(BaseModel):
             "volume": self.volume,
             "created_at": self.created_at.isoformat(),  # Convert datetime to ISO string
         }
+
+class Task(BaseModel):
+    id: Optional[int] = None  # Optional since it's SERIAL and auto-generated
+    task_name: str
+    checking_data: str
+    node_hotkey: str
+    created_at: datetime  
+
+class TasksWithHotkeyDetails(BaseModel):
+    contender: Contender
+    tasks: list[Task]
+
+class TaskWithHotkeyDetails(BaseModel):
+    contender: Contender
+    task: Task

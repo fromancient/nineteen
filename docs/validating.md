@@ -18,8 +18,9 @@ Validating on nineteen is special.
 
 Not only do you validate miners are behaving, set some weights and get some tao - you also get to sell your access to these miners 🤩
 
+Depending on if you wish to run the entire validation stack (gpu & proxy) or simply run the auditing script which recovers checking/reward data from rayon validator, calculates scores & sets weights without any need for a GPU / Proxy server.
 
-A Validator consists of two parts:
+A vanilla Validator (no auditing) consists of two parts:
 
 - Proxy API server
 - Orchestrator server
@@ -29,7 +30,7 @@ The proxy server is the server which has your hotkey,  spins up the NODE, allows
 The Orchestrator performs the checking tasks, to make sure the miners are behaving 🫡
 
 
-# Proxy server setup
+# Proxy server / auditor setup
 
 Get a CPU VM (Digital Ocean Droplet, OVH, Vultr, etc)  - make sure you have an open port if you want to run a organic API server.
 
@@ -68,10 +69,15 @@ Securely move them onto your machine as usual. Either with the btcli or with a s
 ## Create the necessary config
 
 (Add --dev flag if you are a developer on nineteen)
+- For vanilla validation system : 
 ```bash
 python core/create_config.py
 ```
-
+then manually add `IS_AUDITOR=0` to `.vali.env`
+- For auditing-validation system:
+```bash
+python core/create_config.py --auditor
+```
 
 If you're running the autoupdater, then you should be running!
 
@@ -81,6 +87,16 @@ pm2 logs validator_autoupdater
 ```
 
 ## Start the services if you don't have autoupdates
+For auditing, you just need to run :
+```bash
+task install
+task auditor
+```
+you can check the logs via 
+```bash
+pm2 logs auditor
+```
+
 
 (If you are a dev, go to dev.md docs now)
 

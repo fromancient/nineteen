@@ -1,5 +1,6 @@
 import enum
 import json
+import os
 import time
 from typing import Any, Dict, List, Optional, Union
 import httpx
@@ -9,6 +10,7 @@ from fiber import Keypair
 from core import constants as ccst
 from datetime import datetime
 from validator.models import RewardData
+import os
 
 logger = get_logger(__name__)
 
@@ -24,13 +26,13 @@ class DataTypeToPost(enum.Enum):
 
 
 data_type_to_url = {
-    DataTypeToPost.REWARD_DATA: ccst.BASE_NINETEEN_API_URL + "v1/store/reward_data",
-    DataTypeToPost.UID_RECORD: ccst.BASE_NINETEEN_API_URL + "v1/store/uid_records",
-    DataTypeToPost.MINER_CAPACITIES: ccst.BASE_NINETEEN_API_URL + "v1/store/miner_capacities",
-    DataTypeToPost.VALIDATOR_INFO: ccst.BASE_NINETEEN_API_URL + "v1/store/validator_info",
-    DataTypeToPost.MINER_TYPES: ccst.BASE_NINETEEN_API_URL + "v1/store/miner_types",
-    DataTypeToPost.MINER_WEIGHTS: ccst.BASE_NINETEEN_API_URL + "v1/store/miner_weights",
-    DataTypeToPost.CONTENDER_WEIGHTS_INFO: ccst.BASE_NINETEEN_API_URL + "v1/store/contender_weights_info",
+    DataTypeToPost.REWARD_DATA: ccst.BASE_TAOVISION_API_URL + "v1/store/reward_data",
+    DataTypeToPost.UID_RECORD: ccst.BASE_TAOVISION_API_URL + "v1/store/uid_records",
+    DataTypeToPost.MINER_CAPACITIES: ccst.BASE_TAOVISION_API_URL + "v1/store/miner_capacities",
+    DataTypeToPost.VALIDATOR_INFO: ccst.BASE_TAOVISION_API_URL + "v1/store/validator_info",
+    DataTypeToPost.MINER_TYPES: ccst.BASE_TAOVISION_API_URL + "v1/store/miner_types",
+    DataTypeToPost.MINER_WEIGHTS: ccst.BASE_TAOVISION_API_URL + "v1/store/miner_weights",
+    DataTypeToPost.CONTENDER_WEIGHTS_INFO: ccst.BASE_TAOVISION_API_URL + "v1/store/contender_weights_info",
 }
 
 # Turn off if you don't wanna post your validator info to nineteen.ai
@@ -47,7 +49,13 @@ async def post_to_nineteen_ai(
     data_type_to_post: DataTypeToPost,
     timeout: int = 10,
 ) -> None:
-    logger.debug(f"Sending {data_type_to_post} to {ccst.BASE_NINETEEN_API_URL}. Data: {data_to_post}")
+    post_data = int(os.getenv("POST_DATA_TAOVISION", '1'))
+
+    if post_data != 1:
+        logger.info(f"Not sending data to Taovision api, we're in dev env.")
+        return
+
+    logger.debug(f"Sending {data_type_to_post} to {ccst.BASE_TAOVISION_API_URL}. Data: {data_to_post}")
     if not POST_TO_NINETEEN_AI:
         return
     timestamp = time.time()
@@ -66,22 +74,22 @@ async def post_to_nineteen_ai(
             resp = await client.post(
                 url=data_type_to_url[data_type_to_post],
                 data=json.dumps(data_to_post),
-                headers=headers,
+                headers=headers
             )
             logger.info(
-                f"Resp status code from {ccst.BASE_NINETEEN_API_URL}: {resp.status_code} for post type {data_type_to_post}"
+                f"Resp status code from {ccst.BASE_TAOVISION_API_URL}: {resp.status_code} for post type {data_type_to_post}"
             )
             resp.raise_for_status()
             return resp
         except Exception as e:
             if resp is not None and resp.status_code == 403:
                 logger.info(
-                    f"403 when posting to {ccst.BASE_NINETEEN_API_URL} to store data for {data_type_to_post}. "
+                    f"403 when posting to {ccst.BASE_TAOVISION_API_URL} to store data for {data_type_to_post}. "
                     "Either you're on testnet, dont have enough stake, or this will resolve itself soon"
                 )
             else:
                 logger.error(
-                    f"Error when posting to {ccst.BASE_NINETEEN_API_URL} to store data for {data_type_to_post}: {repr(e)}"
+                    f"Error when posting to {ccst.BASE_TAOVISION_API_URL} to store data for {data_type_to_post}: {repr(e)}"
                 )
 
 

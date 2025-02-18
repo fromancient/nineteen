@@ -323,6 +323,33 @@ async def fetch_hotkey_scores_for_task(connection: Connection, task: str, node_h
     )
     return [PeriodScore(**row) for row in rows]
 
+async def fetch_contender_by_hotkey_and_task(connection: Connection, hotkey: str, task: str) -> Contender | None:
+    row = await connection.fetchrow(
+        f"""
+        SELECT *
+        FROM {dcst.CONTENDERS_TABLE}
+        WHERE {dcst.COLUMN_MINER_HOTKEY} = $1
+        AND {dcst.TASK} = $2
+        """,
+        hotkey,
+        task
+    )
+    if not row:
+        return None
+    return Contender(**row)
+
+async def fetch_contender_by_hotkey(connection: Connection, hotkey: str) -> Contender | None:
+    row = await connection.fetchrow(
+        f"""
+        SELECT *
+        FROM {dcst.CONTENDERS_TABLE}
+        WHERE {dcst.COLUMN_MINER_HOTKEY} = $1
+        """,
+        hotkey,
+    )
+    if not row:
+        return None
+    return Contender(**row)
 
 async def update_contenders_period_scores(connection: Connection, netuid: int) -> None:
     rows = await connection.fetch(

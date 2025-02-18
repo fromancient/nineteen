@@ -1,6 +1,8 @@
 import os
 from dataclasses import dataclass
-from redis.asyncio import Redis
+from redis.asyncio import Redis, ConnectionPool
+from redis.retry import Retry
+from redis.backoff import ExponentialBackoff
 
 from fiber.logging_utils import get_logger
 
@@ -38,6 +40,13 @@ class Config:
     testnet: bool = os.getenv("SUBTENSOR_NETWORK", "").lower() == "test"
     debug: bool = os.getenv("ENV", "prod").lower() != "prod"
 
+def load_hotkey_keypair_from_seed(secret_seed: str) -> Keypair:
+    try:
+        keypair = Keypair.create_from_seed(secret_seed)
+        logger.info("Loaded keypair from seed directly!")
+        return keypair
+    except Exception as e:
+        raise ValueError(f"Failed to load keypair: {str(e)}")
 
 def load_config() -> Config:
     subtensor_network = os.getenv("SUBTENSOR_NETWORK")
@@ -72,7 +81,24 @@ def load_config() -> Config:
         substrate = interface.get_substrate(subtensor_network=subtensor_network, subtensor_address=subtensor_address)
     else:
         substrate = None
-    keypair = chain_utils.load_hotkey_keypair(wallet_name=wallet_name, hotkey_name=hotkey_name)
+    try:
+        keypair = chain_utils.load_hotkey_keypair(wallet_name=wallet_name, hotkey_name=hotkey_name)
+
+    except (ValueError, FileNotFoundError) as e:
+        logger.info("Attempting to use WALLET_SECRET_SEED environment variable")
+        secret_seed = os.getenv("WALLET_SECRET_SEED", None)
+        if secret_seed:
+            try:
+                keypair = load_hotkey_keypair_from_seed(secret_seed)
+            except Exception as e:
+                logger.error(f"Failed to load keypair from seed: {str(e)}")
+                raise ValueError(f"Invalid secret seed provided: {str(e)}")
+        else:
+            logger.error("WALLET_SECRET_SEED environment variable not set")
+            raise ValueError(f"Could not load wallet from path and WALLET_SECRET_SEED env var is not set. Original error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error loading hotkey from wallet: {str(e)}")
+        raise
 
     default_capacity_to_score_multiplier = 0.1 if subtensor_network == "test" else 1.0
     capacity_to_score_multiplier = float(os.getenv("CAPACITY_TO_SCORE_MULTIPLIER", default_capacity_to_score_multiplier))
@@ -87,11 +113,30 @@ def load_config() -> Config:
         os.getenv("SET_METAGRAPH_WEIGHTS_WITH_HIGH_UPDATED_TO_NOT_DEREG", "false").lower() == "true"
     )
 
+    if "://" in redis_host:
+        pool = ConnectionPool.from_url(
+            redis_host,
+            max_connections=10,
+            socket_keepalive=True,
+            health_check_interval=30,
+            retry=Retry(ExponentialBackoff(), 3)
+        )
+        redis = Redis(connection_pool=pool)
+    else:
+        pool = ConnectionPool(
+            host=redis_host,
+            max_connections=10,
+            socket_keepalive=True,
+            health_check_interval=30,
+            retry=Retry(ExponentialBackoff(), 3)
+    )
+    redis = Redis(connection_pool=pool)
+
     return Config(
         substrate=substrate,  # type: ignore
         keypair=keypair,
         psql_db=PSQLDB(),
-        redis_db=Redis(host=redis_host),
+        redis_db=redis,
         subtensor_network=subtensor_network,
         subtensor_address=subtensor_address,
         netuid=netuid,

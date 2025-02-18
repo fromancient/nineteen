@@ -89,3 +89,35 @@ tasks:
   expose-postgres:
     cmds:
       - docker compose -f docker-compose.yml --env-file .vali.env up -d --scale postgres-proxy=1 --scale adminer=1
+
+  auditor-config:
+    cmds:
+      - python -m core.create_config --auditor
+
+  install:
+    cmds:
+      - source $HOME/.venv/bin/activate
+      - pip install -e .
+      - pip install -r validator/control_node/requirements.txt
+
+  auditor:
+    cmds:
+      - source $HOME/.venv/bin/activate
+      - pm2 delete auditor || true
+      - pm2 start auditor-ecosystem.config.js
+
+  auditor-autoupdates:
+    cmds:
+      - pm2 delete auditor-autoupdates || true
+      - pm2 start "python utils/run_auditor_autoupdate.py" --name auditor-autoupdates
+
+  new-auditor:
+    cmds:
+      - source $HOME/.venv/bin/activate && if [ -f .vali.env ]; then export $(cat .vali.env | grep -v '^#' | xargs); else echo "Error - .vali.env file not found" && exit 1; fi
+      - sh -c '[ -f .auditor.env ] || cp .vali.env .auditor.env'
+      - docker compose --env-file .vali.env --profile entry_node_profile down --remove-orphans
+      - docker image prune -a -f --filter "until=168h"
+      - pip install -e .
+      - pip install -r validator/control_node/requirements.txt
+      - pm2 delete auditor || true
+      - pm2 start auditor-ecosystem.config.js

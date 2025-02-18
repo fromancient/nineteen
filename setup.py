@@ -4,10 +4,9 @@ from os import path
 
 from setuptools import find_packages, setup
 
-VERSION = "5.2.0"
+VERSION = "6.0.0"
 
-
-def read_requirements(path):
+def read_requirements(path='validator/control_node/requirements.txt'):
     with open(path, "r") as f:
         requirements = f.read().splitlines()
         processed_requirements = []
@@ -17,22 +16,17 @@ def read_requirements(path):
                 pkg_name = re.search(r"(#egg=)([\w\-_]+)", req)
                 if pkg_name:
                     processed_requirements.append(pkg_name.group(2))
-
                 else:
                     continue
-
             else:
                 processed_requirements.append(req)
-
         return processed_requirements
 
-
-requirements = read_requirements("requirements.txt")
+requirements = read_requirements()
 here = path.abspath(path.dirname(__file__))
 
 with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
-
 
 setup(
     name="vision",
@@ -40,8 +34,8 @@ setup(
     description="Giving access to bittensor",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/namoray/nineteen",
-    author="namoray",
+    url="https://github.com/rayonlabs/nineteen",
+    author="rayonlabs",
     packages=find_packages(),
     include_package_data=True,
     author_email="",

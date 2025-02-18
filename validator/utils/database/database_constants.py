@@ -6,6 +6,7 @@ NODES_TABLE = "nodes"
 NODES_HISTORY_TABLE = "nodes_history"
 CONTENDERS_TABLE = "contenders"
 CONTENDERS_HISTORY_TABLE = "contenders_history"
+LATEST_SCORES_URL_TABLE = "latest_scores_url"
 
 CONTENDERS_WEIGHTS_STATS_TABLE = "contenders_weights_stats"
 NODES_WEIGHTS_TABLE = "nodes_weights"
@@ -157,3 +158,9 @@ COLUMN_PERIOD_SCORE_MULTIPLIER = "period_score_multiplier"
 COLUMN_NORMALISED_PERIOD_SCORE = "normalised_period_score"
 COLUMN_CONTENDER_CAPACITY = "contender_capacity"
 COLUMN_NORMALISED_NET_SCORE = "normalised_net_score"
+
+# psql pool params
+PSQL_MIN_POOL_SIZE = 20
+PSQL_MAX_POOL_SIZE = 60
+PSQL_MIN_INACTIVE_CNX_LIFETIME = 10
+POOL_TIMEOUT = 30.0

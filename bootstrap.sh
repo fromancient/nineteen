@@ -115,7 +115,7 @@ if [ ! -d "$VENV_PATH" ]; then
     chown -R $SUDO_USER:$SUDO_USER $VENV_PATH $HOME/.bashrc
     echo_ "Python venv created"
     source $VENV_PATH/bin/activate
-    pip install bittensor==7.4.0
+    pip install bittensor==9.0.0
     pip install python-dotenv==1.0.1
 else
     echo_ "Python venv already exists at $VENV_PATH"
@@ -186,7 +186,13 @@ else
     source $HOME/.venv/bin/activate
     sudo -E ./validator_autoupdater.sh
   else
-    docker compose --env-file .vali.env -f docker-compose.yml up -d --build
+    pip install -e .
+    pip install -r validator/control_node/requirements.txt
+
+    source $HOME/.venv/bin/activate
+
+    pm2 delete auditor || true
+    pm2 start auditor-ecosystem.config.js
   fi
 fi
 

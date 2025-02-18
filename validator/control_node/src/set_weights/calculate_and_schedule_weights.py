@@ -5,66 +5,81 @@ Calculates and schedules weights every SCORING_PERIOD
 from dotenv import load_dotenv
 import os
 
-from validator.utils.substrate.query_substrate import query_substrate
-
-
 load_dotenv(os.getenv("ENV_FILE", ".vali.env"))
 
 import asyncio
 
+from validator.models import Contender, PeriodScore, RewardData
+from validator.utils.substrate.query_substrate import query_substrate
 from validator.control_node.src.control_config import Config, load_config
 from validator.db.src.sql.contenders import fetch_all_contenders
+from validator.db.src.sql.nodes import get_vali_node_id
 from validator.control_node.src.cycle import calculations
+
+from core import constants as ccst
+from core.task_config import get_task_configs
+from core.models.config_models import AuditConfig
+
 from fiber.chain import weights
 from fiber.logging_utils import get_logger
-from core import constants as ccst
-from validator.db.src.sql.nodes import get_vali_node_id
 from fiber.chain import fetch_nodes
 from fiber.encrypted.networking.models import NodeWithFernet as Node
 from fiber.chain.interface import get_substrate
 
 logger = get_logger(__name__)
 
+async def _compile_calc_data(config: Config) -> tuple[dict, bool]:
+    netuid = config.netuid
+    psql_db = config.psql_db
+    try:
+        async with await psql_db.connection() as connection:
+            contenders = await fetch_all_contenders(connection, None)
 
-async def _get_weights_to_set(config: Config) -> tuple[list[int], list[float]] | None:
-    async with await config.psql_db.connection() as connection:
-        contenders = await fetch_all_contenders(connection, None)
+        if len(contenders) == 0:
+            logger.warning("No contenders to calculate weights for!")
+            return {}, False
+        else:
+            logger.info(f"Found {len(contenders)} contenders to get weights for")
 
-    if len(contenders) == 0:
-        logger.warning("No contenders to calculate weights for!")
+        task_configs = get_task_configs()
+
+        audit_data = {}
+        audit_data['contenders'] = contenders 
+        audit_data['task_configs'] = task_configs
+        audit_data['metrics'] = {}
+
+        for task, config in task_configs.items():
+            reward_datas: dict[str, list[RewardData]]  = await calculations.get_reward_datas(psql_db, task, netuid)
+            period_scores: dict[str, list[PeriodScore]] = {}
+            for contender in [i for i in contenders if i.task == task]:
+                if contender.node_hotkey not in reward_datas:
+                    continue
+                period_scores_hotkey = await calculations.get_period_scores(psql_db, task, contender.node_hotkey)
+                period_scores[contender.node_hotkey] = period_scores_hotkey
+
+            audit_data['metrics'][task] = {
+                'reward_datas': reward_datas,
+                'period_scores': period_scores
+            }
+
+        return audit_data, True
+    except Exception as e:
+        logger.info(f"Error in compiling weight setting data: {e}")
+        return {}, False
+
+
+async def _get_weights_to_set(config: Config) -> tuple[list[int], list[float], dict] | None:
+    
+    compiled_calc_data, success = await _compile_calc_data(config)
+    if not success:
         return None
-    else:
-        logger.info(f"Found {len(contenders)} contenders to get weights for")
-    node_ids, node_weights = await calculations.calculate_scores_for_settings_weights(config, contenders)
+    
+    node_ids, node_weights = await calculations.calculate_scores_for_settings_weights(config, compiled_calc_data)
+    logger.info(f"Processed node ids, weights & audit data")
 
-    return node_ids, node_weights
+    return node_ids, node_weights, compiled_calc_data
 
-
-async def _get_and_set_weights(config: Config) -> None:
-    validator_node_id = await get_vali_node_id(config.substrate, config.netuid, config.keypair.ss58_address)
-    if validator_node_id is None:
-        raise ValueError("Validator node id not found")
-    result = await _get_weights_to_set(config)
-    if result is None:
-        logger.info("No weights to set. Skipping weight setting.")
-        return
-    node_ids, node_weights = result
-    if len(node_ids) == 0:
-        logger.info("No nodes to set weights for. Skipping weight setting.")
-        return
-
-    logger.info("Weights calculated, about to set...")
-
-    all_nodes: list[Node] = fetch_nodes.get_nodes_for_netuid(config.substrate, config.netuid)
-    all_node_ids = [node.node_id for node in all_nodes]
-    all_node_weights = [0.0 for _ in all_nodes]
-    for node_id, node_weight in zip(node_ids, node_weights):
-        all_node_weights[node_id] = node_weight
-
-    logger.info(f"Node ids: {all_node_ids}")
-    logger.info(f"Node weights: {all_node_weights}")
-    logger.info(f"Number of non zero node weights: {sum(1 for weight in all_node_weights if weight != 0)}")
-
+async def set_weights(config: Config | AuditConfig, all_node_ids: list[int], all_node_weights: list[float], validator_node_id: int) -> bool:
     try:
         success = await asyncio.to_thread(
             weights.set_node_weights,
@@ -85,11 +100,40 @@ async def _get_and_set_weights(config: Config) -> None:
 
     if success:
         logger.info("Weights set successfully.")
+
         return True
     else:
         logger.error("Failed to set weights :(")
         return False
 
+
+async def _get_and_set_weights(config: Config) -> bool | None:
+    validator_node_id = await get_vali_node_id(config.substrate, config.netuid, config.keypair.ss58_address)
+    logger.info(f"Validator node id : {validator_node_id}")
+    if validator_node_id is None:
+        raise ValueError("Validator node id not found")
+    result = await _get_weights_to_set(config)
+    if result is None:
+        logger.info("No weights to set. Skipping weight setting.")
+        return
+    node_ids, node_weights, audit_data = result
+    if len(node_ids) == 0:
+        logger.info("No nodes to set weights for. Skipping weight setting.")
+        return
+
+    logger.info("Weights calculated, about to set...")
+
+    all_nodes: list[Node] = fetch_nodes.get_nodes_for_netuid(config.substrate, config.netuid)
+    all_node_ids = [node.node_id for node in all_nodes]
+    all_node_weights = [0.0 for _ in all_nodes]
+    for node_id, node_weight in zip(node_ids, node_weights):
+        all_node_weights[node_id] = node_weight
+
+    logger.info(f"Node ids: {all_node_ids}")
+    logger.info(f"Node weights: {all_node_weights}")
+    logger.info(f"Number of non zero node weights: {sum(1 for weight in all_node_weights if weight != 0)}")
+
+    await set_weights(config, all_node_ids, all_node_weights, int(validator_node_id))
 
 async def _set_metagraph_weights(config: Config) -> None:
     nodes: list[Node] = fetch_nodes.get_nodes_for_netuid(config.substrate, config.netuid)
@@ -132,11 +176,12 @@ async def set_weights_periodically(config: Config, just_once: bool = False) -> N
         )
         updated: float = current_block - last_updated_value[uid]
         logger.info(f"Last updated: {updated} for my uid: {uid}")
+
         if updated < 150:
             logger.info(f"Last updated: {updated} - sleeping for a bit as we set recently...")
             await asyncio.sleep(12 * 25)  # sleep for 25 blocks
             continue
-
+        
         if os.getenv("ENV", "prod").lower() == "dev":
             success = await _get_and_set_weights(config)
         else:

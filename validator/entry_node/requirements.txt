@@ -9,6 +9,8 @@ aiocache==0.12.2
 scalar-fastapi==1.0.3
 python-dotenv==1.0
 diskcache==5.6
+aiohttp==3.11.12
+loguru==0.7.3
 
 opentelemetry-distro==0.47b0
 opentelemetry-exporter-otlp-proto-http==1.26.0

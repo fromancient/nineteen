@@ -5,7 +5,7 @@ import os
 load_dotenv(os.getenv("ENV_FILE", ".vali.env"))
 
 import asyncio
-from redis.asyncio import Redis
+from redis.asyncio import Redis, BlockingConnectionPool
 
 from fiber.logging_utils import get_logger
 import json
@@ -16,6 +16,10 @@ from validator.db.src.sql.nodes import get_vali_ss58_address
 from validator.db.src.database import PSQLDB
 from fiber.chain import chain_utils
 from opentelemetry import metrics
+from substrateinterface import Keypair
+from redis.retry import Retry
+from redis.backoff import ExponentialBackoff
+
 
 logger = get_logger(__name__)
 
@@ -38,6 +42,30 @@ QUERY_NODE_FAILED_TASKS_COUNTER = metrics.get_meter(__name__).create_counter(
     description="number of failed `process_task` instances",
     unit="1"
 )
+
+def load_hotkey_keypair_from_seed(secret_seed: str) -> Keypair:
+    try:
+        keypair = Keypair.create_from_seed(secret_seed)
+        logger.info("Loaded keypair from seed directly!")
+        return keypair
+    except Exception as e:
+        raise ValueError(f"Failed to load keypair: {str(e)}")
+
+def create_redis_pool(host: str) -> BlockingConnectionPool:
+    pool_config = {
+        "max_connections": 10,
+        "socket_keepalive": True,
+        "retry_on_timeout": True,
+        "health_check_interval": 30,
+        "retry": Retry(ExponentialBackoff(cap=10, base=1), 5),
+        "timeout": 20,
+        "socket_connect_timeout": 10,
+        "socket_timeout": 10
+    }
+    if "://" in host:
+        return BlockingConnectionPool.from_url(host, **pool_config)
+    else:
+        return BlockingConnectionPool(host=host, **pool_config)
 
 async def load_config() -> Config:
     wallet_name = os.getenv("WALLET_NAME", "default")
@@ -66,16 +94,35 @@ async def load_config() -> Config:
         ss58_address = await get_vali_ss58_address(psql_db, netuid)
         await asyncio.sleep(0.1)
 
-    keypair = chain_utils.load_hotkey_keypair(wallet_name=wallet_name, hotkey_name=hotkey_name)
+    try:
+        keypair = chain_utils.load_hotkey_keypair(wallet_name=wallet_name, hotkey_name=hotkey_name)
+
+    except (ValueError, FileNotFoundError) as e:
+        logger.info("Attempting to use WALLET_SECRET_SEED environment variable")
+        secret_seed = os.getenv("WALLET_SECRET_SEED", None)
+        if secret_seed:
+            try:
+                keypair = load_hotkey_keypair_from_seed(secret_seed)
+            except Exception as e:
+                logger.error(f"Failed to load keypair from seed: {str(e)}")
+                raise ValueError(f"Invalid secret seed provided: {str(e)}")
+        else:
+            logger.error("WALLET_SECRET_SEED environment variable not set")
+            raise ValueError(f"Could not load wallet from path and WALLET_SECRET_SEED env var is not set. Original error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error loading hotkey from wallet: {str(e)}")
+        raise
+    
+    redis_pool = create_redis_pool(redis_host)
 
     return Config(
-        redis_db=Redis(host=redis_host),
+        redis_db=Redis(connection_pool=redis_pool),
         psql_db=psql_db,
         netuid=netuid,
         ss58_address=ss58_address,
         replace_with_docker_localhost=replace_with_docker_localhost,
         replace_with_localhost=localhost,
-        keypair=keypair,
+        keypair=keypair
     )
 
 

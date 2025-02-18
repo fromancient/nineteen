@@ -10,11 +10,13 @@ def run_auto_updater():
     print("Starting auto-updater...")
     print("First i'll run the docker containers...")
     print("Checking for .vali.env file...")
-    while not os.path.exists('.vali.env'):
-        print(".vali.env file not found. Waiting 10 seconds before checking again...")
+    while not ( os.path.exists('.vali.env') or os.path.exists('.auditor.env') ):
+        print(".vali.env/.auditor.env file not found. Waiting 10 seconds before checking again...")
         time.sleep(10)
-    print(".vali.env file found. Proceeding with docker setup...")
-    launch_command = "./utils/launch_validator.sh"
+    print(".vali.env/.auditor.env file found. Proceeding with docker setup...")
+    #launch_command = "./utils/launch_validator.sh"
+    launch_command = "./utils/autoupdate_validator_steps.sh" # for auditing
+
     os.system(launch_command)
     time.sleep(60)
 
