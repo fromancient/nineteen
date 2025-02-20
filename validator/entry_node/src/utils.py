@@ -164,7 +164,7 @@ def _get_image_model(request: TextToImageRequest | ImageToImageRequest | AvatarR
         type(request) is AvatarRequest and (request.height, request.width) not in cst.ALLOWED_AVATAR_RES
     ):
         raise HTTPException(
-            status_code=403,
+            status_code=400,
             detail=f"Resolution {(request.height, request.width)} not supported. Available resolutions: {cst.ALLOWED_TEXT_TO_IMAGE_RES}",
         )
 
