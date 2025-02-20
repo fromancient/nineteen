@@ -160,6 +160,12 @@ def _get_image_model(request: TextToImageRequest | ImageToImageRequest | AvatarR
     else:
         model = model_hypened
 
+    if (request.height, request.width) not in cst.ALLOWED_TEXT_TO_IMAGE_RES:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Resolution {(request.height, request.width)} not supported. Available resolutions: {cst.ALLOWED_TEXT_TO_IMAGE_RES}",
+        )
+
     return model
 
 
