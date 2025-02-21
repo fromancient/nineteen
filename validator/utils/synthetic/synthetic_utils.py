@@ -29,6 +29,9 @@ logger = get_logger(__name__)
 
 random_text_queue = asyncio.Queue(maxsize=scst.RANDOM_TEXT_QUEUE_MAX_SIZE)
 
+def get_text_to_image_resolution() -> tuple[int, int]:
+        return random.choice([(512, 512), (1024, 1024), (1024, 512), (512, 1024)])
+
 @lru_cache(maxsize=None)
 def get_synth_corpus():
     try:
