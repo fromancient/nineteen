@@ -259,8 +259,7 @@ async def generate_text_to_image_synthetic(
     seed = random.randint(1, scst.MAX_SEED)
 
     # NOTE: Needs to be in task config perhaps to make more robust?
-    height = 1024
-    width = 1024
+    height, width = sutils.get_text_to_image_resolution()
     cfg_scale = 3.0
     steps = 8
 
